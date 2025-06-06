@@ -1,4 +1,3 @@
-import ItemsList from '../../../src/components/ItemsList';
 
 export default function Home() {
   return (
@@ -10,7 +9,7 @@ export default function Home() {
         </p>
         
         <div className="w-full bg-white rounded-lg shadow-md p-6">
-          {/* <ItemsList /> */}
+
         </div>
       </div>
     </main>
