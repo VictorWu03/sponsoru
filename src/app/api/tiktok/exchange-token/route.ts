@@ -80,23 +80,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // TikTok API returns the token data directly (not nested in data.data)
-    if (!data.access_token) {
-      console.error('No access token in response:', data);
+    // TikTok API returns tokens nested in data.data (based on official documentation)
+    const tokenData = data.data;
+    if (!tokenData || !tokenData.access_token) {
+      console.error('No access token in TikTok response:', data);
       return NextResponse.json(
-        { error: 'No access token received from TikTok' },
+        { 
+          error: 'No access token received from TikTok',
+          responseStructure: data,
+          debug: 'Expected data.data.access_token but not found'
+        },
         { status: 400 }
       );
     }
 
     console.log('TikTok token exchange successful');
     return NextResponse.json({
-      access_token: data.access_token,
-      refresh_token: data.refresh_token,
-      expires_in: data.expires_in,
-      scope: data.scope,
-      open_id: data.open_id,
-      token_type: data.token_type || 'Bearer'
+      access_token: tokenData.access_token,
+      refresh_token: tokenData.refresh_token,
+      expires_in: tokenData.expires_in,
+      scope: tokenData.scope,
+      open_id: tokenData.open_id,
+      token_type: 'Bearer'
     });
 
   } catch (error) {
