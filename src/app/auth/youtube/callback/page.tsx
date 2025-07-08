@@ -13,7 +13,6 @@ export default function YouTubeCallback() {
   useEffect(() => {
     const handleCallback = async () => {
       const code = searchParams.get('code');
-      const state = searchParams.get('state');
       const error = searchParams.get('error');
 
       if (error) {

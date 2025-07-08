@@ -40,19 +40,7 @@ export default function UserMenu({ user }: UserMenuProps) {
     return user.email?.split('@')[0] || 'User';
   };
 
-  const getInitials = () => {
-    const name = getDisplayName();
-    return name
-      .split(' ')
-      .map((word: string) => word[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
-  };
 
-  const getAvatarUrl = () => {
-    return user.user_metadata?.avatar_url || user.user_metadata?.picture;
-  };
 
   return (
     <div className="relative" ref={menuRef}>
@@ -60,7 +48,10 @@ export default function UserMenu({ user }: UserMenuProps) {
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center space-x-2 bg-white rounded-full p-1 hover:shadow-md transition-shadow"
       >
-        {getAvatarUrl() ? (
+        <div className="rounded-full flex items-center justify-center text-sm font-medium text-blue-900 px-3 py-1">
+          {getDisplayName()}
+        </div>
+        {/* {getAvatarUrl() ? (
           <img
             src={getAvatarUrl()}
             alt={getDisplayName()}
@@ -73,7 +64,7 @@ export default function UserMenu({ user }: UserMenuProps) {
         )}
         <span className="hidden md:block text-sm font-medium text-gray-700">
           {getDisplayName()}
-        </span>
+        </span> */}
         <svg
           className={`w-4 h-4 text-gray-400 transition-transform ${
             isOpen ? 'rotate-180' : ''

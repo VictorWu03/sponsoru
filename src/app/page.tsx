@@ -3,7 +3,7 @@
 import React from 'react';
 import { useAuth } from '../components/AuthProvider';
 import Auth from '../components/Auth';
-import UserMenu from '../components/UserMenu';
+
 
 export default function Home() {
   const { user, loading } = useAuth();

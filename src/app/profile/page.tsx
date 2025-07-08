@@ -4,6 +4,8 @@ import React from 'react';
 import { useAuth } from '../../components/AuthProvider';
 import Profile from '../../components/Profile';
 import YouTubeConnect from '../../components/YouTubeConnect';
+import InstagramConnect from '../../components/InstagramConnect';
+import TikTokConnect from '../../components/TikTokConnect';
 
 export default function ProfilePage() {
   const { user, loading } = useAuth();
@@ -25,12 +27,12 @@ export default function ProfilePage() {
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-4">Please sign in</h1>
           <p className="text-gray-600 mb-4">You need to be signed in to view your profile.</p>
-          <a 
-            href="/"
+          <button
+            onClick={() => window.location.href = '/'}
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 inline-block"
           >
             Go to Home
-          </a>
+          </button>
         </div>
       </div>
     );
@@ -71,7 +73,11 @@ export default function ProfilePage() {
           
           <div>
             <h2 className="text-2xl font-bold mb-4 text-blue-800">Social Media Connections</h2>
-            <YouTubeConnect />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <YouTubeConnect />
+              <InstagramConnect />
+              <TikTokConnect />
+            </div>
           </div>
         </div>
       </main>
