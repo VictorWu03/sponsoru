@@ -14,87 +14,98 @@ export async function POST(request: NextRequest) {
     const clientKey = process.env.NEXT_PUBLIC_TIKTOK_CLIENT_KEY;
     const clientSecret = process.env.TIKTOK_CLIENT_SECRET;
 
-    console.log('TikTok Token Exchange Debug:');
+    console.log('TikTok Token Exchange - Start');
+    console.log('Code length:', code ? code.length : 0);
     console.log('Client Key:', clientKey ? `${clientKey.substring(0, 5)}...` : 'NOT SET');
     console.log('Client Secret:', clientSecret ? 'SET' : 'NOT SET');
-    console.log('Code:', code ? `${code.substring(0, 10)}...` : 'NOT SET');
-    console.log('Redirect URI:', redirectUri);
 
+    if (!clientKey || !clientSecret) {
+      return NextResponse.json(
+        { error: 'TikTok client credentials not configured' },
+        { status: 500 }
+      );
+    }
+
+    const requestBody = new URLSearchParams({
+      client_key: clientKey,
+      client_secret: clientSecret,
+      code: code,
+      grant_type: 'authorization_code',
+      redirect_uri: redirectUri,
+    });
+
+    console.log('Making TikTok API request...');
+    const startTime = Date.now();
+    
     const response = await fetch('https://open.tiktokapis.com/v2/oauth/token/', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
         'Cache-Control': 'no-cache',
       },
-      body: new URLSearchParams({
-        client_key: clientKey || '',
-        client_secret: clientSecret || '',
-        code,
-        grant_type: 'authorization_code',
-        redirect_uri: redirectUri,
-      }),
+      body: requestBody,
     });
 
-    const data = await response.json();
-    
-    console.log('TikTok API Response:');
-    console.log('Status:', response.status);
-    console.log('Response:', JSON.stringify(data, null, 2));
+    const responseTime = Date.now() - startTime;
+    console.log(`TikTok API response time: ${responseTime}ms`);
+    console.log('TikTok API status:', response.status);
+
+    const responseText = await response.text();
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('Failed to parse TikTok response:', responseText);
+      return NextResponse.json(
+        { error: 'Invalid response from TikTok API' },
+        { status: 500 }
+      );
+    }
+
+    console.log('TikTok API response:', data);
 
     if (!response.ok) {
-      console.error('TikTok token exchange error:', data);
-      let errorMessage = 'Token exchange failed';
-      if (data.error === 'invalid_client') {
-        errorMessage = 'Invalid TikTok app credentials. Check your Client Key and Secret.';
-      } else if (data.error === 'invalid_grant') {
-        errorMessage = 'Invalid authorization code. Please try connecting again.';
-      } else if (data.error === 'redirect_uri_mismatch') {
-        errorMessage = 'Redirect URI mismatch. Ensure the callback URL is registered in your TikTok app.';
-      } else if (data.error_description) {
-        errorMessage = data.error_description;
-      }
+      console.error('TikTok API error:', data);
       return NextResponse.json(
-        { error: errorMessage, details: data },
-        { status: response.status }
-      );
-    }
-
-    // Handle different TikTok response structures
-    let tokenData;
-    if (data.data && data.data.access_token) {
-      // Expected structure: { data: { access_token, ... } }
-      tokenData = data.data;
-    } else if (data.access_token) {
-      // Direct structure: { access_token, ... }
-      tokenData = data;
-    } else {
-      console.error('Unexpected TikTok response structure:', data);
-      return NextResponse.json(
-        { error: 'Unexpected response structure from TikTok', details: data },
+        { 
+          error: data.error || 'Token exchange failed',
+          details: data,
+          debug: {
+            requestBody: requestBody.toString(),
+            responseStatus: response.status,
+            responseTime: `${responseTime}ms`
+          }
+        },
         { status: 400 }
       );
     }
 
-    if (!tokenData.access_token) {
-      console.error('No access token in TikTok response:', data);
+    // TikTok API returns the token data directly (not nested in data.data)
+    if (!data.access_token) {
+      console.error('No access token in response:', data);
       return NextResponse.json(
-        { error: 'No access token received from TikTok', details: data },
+        { error: 'No access token received from TikTok' },
         { status: 400 }
       );
     }
 
+    console.log('TikTok token exchange successful');
     return NextResponse.json({
-      access_token: tokenData.access_token,
-      refresh_token: tokenData.refresh_token,
-      expires_in: tokenData.expires_in,
-      token_type: tokenData.token_type || 'Bearer',
-      scope: tokenData.scope,
-      open_id: tokenData.open_id,
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+      expires_in: data.expires_in,
+      scope: data.scope,
+      open_id: data.open_id,
+      token_type: data.token_type || 'Bearer'
     });
+
   } catch (error) {
-    console.error('TikTok token exchange error:', error);
+    console.error('Token exchange error:', error);
     return NextResponse.json(
-      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
+      { 
+        error: 'Internal server error',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     );
   }
