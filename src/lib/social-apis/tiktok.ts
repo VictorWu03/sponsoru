@@ -38,6 +38,9 @@ interface TikTokAnalytics {
   recentVideos: TikTokVideoStats[];
 }
 
+// Export interfaces for use in components
+export type { TikTokUserStats, TikTokVideoStats, TikTokAnalytics };
+
 export class TikTokAPI {
   private baseUrl = 'https://open-api.tiktok.com';
 
@@ -83,6 +86,29 @@ export class TikTokAPI {
       };
     } catch (error) {
       console.error('Error fetching TikTok user info:', error);
+      return null;
+    }
+  }
+
+  // Alias for getUserInfo to match component expectations
+  async getUserStats(accessToken: string): Promise<{
+    followerCount?: number;
+    totalViews?: number;
+    totalLikes?: number;
+    videoCount?: number;
+  } | null> {
+    try {
+      const userInfo = await this.getUserInfo(accessToken);
+      if (!userInfo) return null;
+
+      return {
+        followerCount: parseInt(userInfo.followerCount) || 0,
+        totalViews: 0, // TikTok doesn't provide total views in user info
+        totalLikes: parseInt(userInfo.likesCount) || 0,
+        videoCount: parseInt(userInfo.videoCount) || 0,
+      };
+    } catch (error) {
+      console.error('Error fetching TikTok user stats:', error);
       return null;
     }
   }
