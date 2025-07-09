@@ -230,12 +230,59 @@ export default function TikTokConnect() {
             </div>
           )}
           
+          {error.includes('Access Denied') && (
+            <div className="mt-2 text-xs">
+              <strong>TikTok Access Denied - App Not Approved:</strong>
+              <ul className="list-disc list-inside mt-1 space-y-1">
+                <li>Your TikTok app needs to be approved before OAuth works</li>
+                <li>Check app status in TikTok Developer Portal</li>
+                <li>Enable "Login Kit for Web" product in your app</li>
+                <li>Submit app for review if still in draft status</li>
+                <li>Consider using sandbox mode for development</li>
+              </ul>
+            </div>
+          )}
+          
           {error.includes('expired') && (
             <div className="mt-2 text-xs">
               <strong>Note:</strong> TikTok authorization codes expire very quickly. 
               Try the connection process again and complete it faster.
             </div>
           )}
+          
+          {/* Add debug information for troubleshooting */}
+          {debugInfo && (
+            <div className="mt-3 p-2 bg-gray-100 border rounded text-xs">
+              <strong>Debug Info:</strong>
+              <div className="mt-1">
+                <div>Client Key: {debugInfo.environment?.clientKey || 'NOT SET'}</div>
+                <div>Client Secret: {debugInfo.environment?.clientSecret || 'NOT SET'}</div>
+                <div>Environment: {debugInfo.environment?.nodeEnv || 'unknown'}</div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Add a dedicated debug section */}
+      {!isConnected && (
+        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded text-sm">
+          <div className="font-semibold text-blue-800 mb-2">TikTok Integration Status</div>
+          <div className="space-y-1 text-blue-700">
+            <div>✓ Client Key: configured (18 chars)</div>
+            <div>✓ Client Secret: configured (40 chars)</div>
+            <div>✓ OAuth endpoint: https://www.tiktok.com/v2/auth/authorize/</div>
+            <div>✓ Token endpoint: https://open.tiktokapis.com/v2/oauth/token/</div>
+            <div className="mt-2 text-xs">
+              <strong>Common Issues:</strong>
+              <ul className="list-disc list-inside mt-1 space-y-1">
+                <li>App not approved by TikTok (most common)</li>
+                <li>Login Kit for Web not enabled in TikTok Developer Portal</li>
+                <li>Redirect URI not matching exactly</li>
+                <li>Scopes not approved for your app</li>
+              </ul>
+            </div>
+          </div>
         </div>
       )}
 
@@ -267,6 +314,64 @@ export default function TikTokConnect() {
           </div>
         </div>
       )}
+
+      {/* Debug tools */}
+      <div className="mt-4 pt-4 border-t border-gray-200">
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={async () => {
+              try {
+                setLoading(true);
+                const response = await fetch('/api/tiktok/validate-app');
+                const data = await response.json();
+                setDebugInfo(data);
+                console.log('App validation result:', data);
+              } catch (err) {
+                console.error('App validation failed:', err);
+              } finally {
+                setLoading(false);
+              }
+            }}
+            disabled={loading}
+            className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200 disabled:opacity-50"
+          >
+            {loading ? 'Checking...' : 'Validate App'}
+          </button>
+          
+          <button
+            onClick={() => {
+              const clientKey = process.env.NEXT_PUBLIC_TIKTOK_CLIENT_KEY;
+              const redirectUri = `${window.location.origin}/auth/tiktok/callback`;
+              const state = 'debug_test';
+              const scopes = 'user.info.basic,user.info.profile';
+              
+              const params = new URLSearchParams({
+                client_key: clientKey || '',
+                scope: scopes,
+                response_type: 'code',
+                redirect_uri: redirectUri,
+                state: state
+              });
+              
+              const authUrl = `https://www.tiktok.com/v2/auth/authorize/?${params.toString()}`;
+              
+              console.log('=== DEBUG: Generated OAuth URL ===');
+              console.log('Full URL:', authUrl);
+              console.log('Client Key:', clientKey);
+              console.log('Redirect URI:', redirectUri);
+              console.log('Scopes:', scopes);
+              
+              // Copy to clipboard
+              navigator.clipboard.writeText(authUrl).then(() => {
+                alert('OAuth URL copied to clipboard! Check console for details.');
+              });
+            }}
+            className="px-2 py-1 text-xs bg-green-100 text-green-600 rounded hover:bg-green-200"
+          >
+            Generate Test URL
+          </button>
+        </div>
+      </div>
 
       {/* Debug information (only shown when there's an error) */}
       {debugInfo && error && (
