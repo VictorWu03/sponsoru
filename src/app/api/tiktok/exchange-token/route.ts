@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     const tokenUrl = 'https://open.tiktokapis.com/v2/oauth/token/';
     
     const requestBody = new URLSearchParams({
-      client_id: clientKey,  // Note: TikTok Display API uses client_id, not client_key
+      client_key: clientKey,  // TikTok Display API uses client_key
       client_secret: clientSecret,
       code: code,
       grant_type: 'authorization_code',
@@ -78,21 +78,40 @@ export async function POST(request: NextRequest) {
 
     console.log('Response data:', JSON.stringify(data, null, 2));
 
-    if (response.ok && data.access_token) {
+    if (response.ok) {
       console.log('✅ Token exchange successful');
-      return NextResponse.json({
-        access_token: data.access_token,
-        refresh_token: data.refresh_token,
-        expires_in: data.expires_in,
-        scope: data.scope,
-        open_id: data.open_id,
-        token_type: data.token_type || 'Bearer',
-        debug: {
-          responseTime: `${responseTime}ms`,
-          timestamp: new Date().toISOString(),
-          endpoint: 'TikTok Display API v2'
-        }
-      });
+      
+      // TikTok API often returns data in nested structure
+      const tokenData = data.data || data;
+      
+      if (tokenData.access_token) {
+        return NextResponse.json({
+          access_token: tokenData.access_token,
+          refresh_token: tokenData.refresh_token,
+          expires_in: tokenData.expires_in,
+          scope: tokenData.scope,
+          open_id: tokenData.open_id,
+          token_type: tokenData.token_type || 'Bearer',
+          debug: {
+            responseTime: `${responseTime}ms`,
+            timestamp: new Date().toISOString(),
+            endpoint: 'TikTok Display API v2'
+          }
+        });
+      } else {
+        console.error('❌ No access token found in successful response');
+        return NextResponse.json(
+          { 
+            error: 'No access token in response',
+            data: data,
+            debug: {
+              responseTime: `${responseTime}ms`,
+              timestamp: new Date().toISOString()
+            }
+          },
+          { status: 500 }
+        );
+      }
     } else {
       // Handle TikTok API errors
       console.error('❌ TikTok API error:', data);

@@ -264,14 +264,14 @@ export class TikTokAPI {
     ].join(',');
 
     const params = new URLSearchParams({
-      client_id: process.env.NEXT_PUBLIC_TIKTOK_CLIENT_KEY || '',
+      client_key: process.env.NEXT_PUBLIC_TIKTOK_CLIENT_KEY || '',
       scope: scopes,
       response_type: 'code',
       redirect_uri: redirectUri,
       state: state,
     });
 
-    return `https://www.tiktok.com/v2/auth/authorize/?${params.toString()}`;
+    return `https://www.tiktok.com/auth/authorize/?${params.toString()}`;
   }
 
   async exchangeCodeForTokens(code: string, redirectUri: string): Promise<any> {
