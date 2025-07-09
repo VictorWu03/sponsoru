@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { TikTokAPI } from '../lib/social-apis/tiktok';
+import { supabase } from '../lib/supabase';
+import { useAuth } from './AuthProvider';
 
 interface ComponentUserStats {
   followerCount?: number;
@@ -11,19 +13,48 @@ interface ComponentUserStats {
 }
 
 export default function TikTokConnect() {
+  const { user } = useAuth();
   const [isConnected, setIsConnected] = useState(false);
   const [userStats, setUserStats] = useState<ComponentUserStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
 
   useEffect(() => {
-    // Check if user already has TikTok tokens
-    const tokens = localStorage.getItem('tiktok_tokens');
-    if (tokens) {
-      setIsConnected(true);
-      fetchUserStats();
+    if (user) {
+      checkTikTokConnection();
     }
-  }, []);
+  }, [user]);
+
+  const checkTikTokConnection = async () => {
+    if (!user) return;
+
+    try {
+      const { data: socialAccount, error } = await supabase
+        .from('social_accounts')
+        .select('access_token, refresh_token, expires_at, platform_user_id')
+        .eq('user_id', user.id)
+        .eq('platform', 'tiktok')
+        .single();
+
+      if (error) {
+        if (error.code !== 'PGRST116') { // Not found error
+          console.error('Error checking TikTok connection:', error);
+        }
+        setIsConnected(false);
+        return;
+      }
+
+      if (socialAccount && socialAccount.access_token) {
+        setIsConnected(true);
+        setAccessToken(socialAccount.access_token);
+        await fetchUserStats(socialAccount.access_token);
+      }
+    } catch (error) {
+      console.error('Error checking TikTok connection:', error);
+      setIsConnected(false);
+    }
+  };
 
   const handleConnect = async () => {
     setError(null);
@@ -39,7 +70,7 @@ export default function TikTokConnect() {
     // Generate state and build OAuth URL
     const state = Math.random().toString(36).substring(7);
     const redirectUri = `${window.location.origin}/auth/tiktok/callback`;
-    const scopes = 'user.info.basic,user.info.profile';
+    const scopes = 'user.info.basic,user.info.profile,user.info.stats,video.list';
     const responseType = 'code';
 
     // Store state for validation
@@ -60,35 +91,80 @@ export default function TikTokConnect() {
     window.location.href = authUrl;
   };
 
-  const fetchUserStats = async () => {
+  const fetchUserStats = async (token?: string) => {
+    if (!user) return;
+    
     setLoading(true);
     setError(null);
 
     try {
-      const tiktokAPI = new TikTokAPI();
-      const tokens = localStorage.getItem('tiktok_tokens');
-      if (!tokens) {
-        throw new Error('No TikTok tokens found');
+      const tokenToUse = token || accessToken;
+      if (!tokenToUse) {
+        throw new Error('No TikTok access token available');
       }
 
-      const { access_token } = JSON.parse(tokens);
-      const stats = await tiktokAPI.getUserStats(access_token);
-      setUserStats(stats);
+      const tiktokAPI = new TikTokAPI();
+      const stats = await tiktokAPI.calculateAnalytics(tokenToUse);
+      
+             if (stats) {
+         setUserStats({
+           followerCount: stats.followerCount,
+           totalViews: stats.averageViews, // Using averageViews since totalViews isn't available
+           totalLikes: stats.totalLikes,
+           videoCount: stats.videoCount
+         });
+      } else {
+        throw new Error('Failed to fetch TikTok analytics');
+      }
     } catch (error) {
       console.error('Error fetching TikTok stats:', error);
-      setError('Failed to fetch TikTok statistics');
-      setIsConnected(false);
-      localStorage.removeItem('tiktok_tokens');
+      setError('Failed to fetch TikTok statistics. Your access token may have expired.');
+      
+      // If token is expired, user needs to reconnect
+      if (error instanceof Error && error.message.includes('token')) {
+        setIsConnected(false);
+        setAccessToken(null);
+        
+        // Optionally, clean up the expired token from database
+        try {
+          await supabase
+            .from('social_accounts')
+            .delete()
+            .eq('user_id', user?.id)
+            .eq('platform', 'tiktok');
+        } catch (dbError) {
+          console.error('Error cleaning up expired token:', dbError);
+        }
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDisconnect = () => {
-    localStorage.removeItem('tiktok_tokens');
-    setIsConnected(false);
-    setUserStats(null);
-    setError(null);
+  const handleDisconnect = async () => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('social_accounts')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('platform', 'tiktok');
+
+      if (error) {
+        console.error('Error disconnecting TikTok:', error);
+        setError('Failed to disconnect TikTok account');
+        return;
+      }
+
+      setIsConnected(false);
+      setUserStats(null);
+      setError(null);
+      setAccessToken(null);
+    } catch (error) {
+      console.error('Error disconnecting TikTok:', error);
+      setError('Failed to disconnect TikTok account');
+    }
   };
 
   const formatNumber = (num: number | undefined): string => {
@@ -155,7 +231,7 @@ export default function TikTokConnect() {
                   <div className="text-2xl font-bold text-black">
                     {formatNumber(userStats.totalViews)}
                   </div>
-                  <div className="text-sm text-gray-600">Total Views</div>
+                  <div className="text-sm text-gray-600">Avg. Views</div>
                 </div>
                 
                 <div className="text-center">
@@ -175,8 +251,9 @@ export default function TikTokConnect() {
 
               <div className="flex space-x-2">
                 <button
-                  onClick={fetchUserStats}
-                  className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+                  onClick={() => fetchUserStats()}
+                  disabled={loading}
+                  className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50"
                 >
                   Refresh Stats
                 </button>
@@ -196,14 +273,15 @@ export default function TikTokConnect() {
               </p>
               <div className="flex space-x-2 justify-center">
                 <button
-                  onClick={fetchUserStats}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+                  onClick={() => fetchUserStats()}
+                  disabled={loading}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50"
                 >
                   Retry
                 </button>
                 <button
                   onClick={handleDisconnect}
-                  className="bg-black text-white px-4 py-2 rounded-md hover:bg-gray-800 transition-colors"
+                  className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors"
                 >
                   Reconnect TikTok
                 </button>
