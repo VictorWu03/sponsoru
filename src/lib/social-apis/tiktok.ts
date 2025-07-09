@@ -271,7 +271,7 @@ export class TikTokAPI {
       state: state,
     });
 
-    return `https://www.tiktok.com/auth/authorize/?${params.toString()}`;
+    return `https://www.tiktok.com/v2/auth/authorize/?${params.toString()}`;
   }
 
   async exchangeCodeForTokens(code: string, redirectUri: string): Promise<any> {
