@@ -80,24 +80,37 @@ export default function TikTokCallback() {
 
         setMessage('Saving TikTok connection...');
 
-                 // Store the tokens in the database
-         const { error: dbError } = await supabase
-           .from('social_accounts')
-           .upsert({
-             user_id: user.id,
-             platform: 'tiktok',
-             platform_user_id: data.open_id || 'unknown',
-             access_token: data.access_token,
-             refresh_token: data.refresh_token,
-             expires_at: data.expires_in ? new Date(Date.now() + data.expires_in * 1000).toISOString() : null,
-             scope: data.scope,
-             updated_at: new Date().toISOString(),
-           });
+        // Log the data we're about to save for debugging
+        const socialAccountData = {
+          user_id: user.id,
+          platform: 'tiktok',
+          platform_user_id: data.open_id || 'unknown',
+          access_token: data.access_token,
+          refresh_token: data.refresh_token,
+          expires_at: data.expires_in ? new Date(Date.now() + data.expires_in * 1000).toISOString() : null,
+          scope: data.scope,
+          updated_at: new Date().toISOString(),
+        };
+        
+        console.log('Saving social account data:', {
+          user_id: user.id,
+          platform: 'tiktok',
+          platform_user_id: data.open_id || 'unknown',
+          has_access_token: !!data.access_token,
+          has_refresh_token: !!data.refresh_token,
+          expires_at: socialAccountData.expires_at,
+          scope: data.scope
+        });
+
+        // Store the tokens in the database
+        const { error: dbError } = await supabase
+          .from('social_accounts')
+          .upsert(socialAccountData);
 
         if (dbError) {
           console.error('Database error:', dbError);
           setStatus('error');
-          setMessage(`Failed to save TikTok connection: ${dbError.message}`);
+          setMessage(`Failed to save TikTok connection: ${JSON.stringify(dbError)}`);
           return;
         }
 
