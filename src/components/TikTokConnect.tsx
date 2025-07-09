@@ -15,7 +15,6 @@ export default function TikTokConnect() {
   const [userStats, setUserStats] = useState<ComponentUserStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [debugInfo, setDebugInfo] = useState<any>(null);
 
   useEffect(() => {
     // Check if user already has TikTok tokens
@@ -28,7 +27,6 @@ export default function TikTokConnect() {
 
   const handleConnect = async () => {
     setError(null);
-    setDebugInfo(null);
     
     const clientKey = process.env.NEXT_PUBLIC_TIKTOK_CLIENT_KEY;
     if (!clientKey) {
@@ -36,53 +34,18 @@ export default function TikTokConnect() {
       return;
     }
 
-    // First, test the environment to make sure everything is configured correctly
-    try {
-      setLoading(true);
-      const envTest = await fetch('/api/test-tiktok-env');
-      const envData = await envTest.json();
-      
-      console.log('Environment test result:', envData);
-      setDebugInfo(envData);
-      
-      if (!envData.environment.clientKey || envData.environment.clientKey === 'NOT SET') {
-        setError('TikTok Client Key is not properly configured');
-        setLoading(false);
-        return;
-      }
-      
-      if (envData.environment.clientSecret === 'NOT SET') {
-        setError('TikTok Client Secret is not properly configured');
-        setLoading(false);
-        return;
-      }
-      
-      // Check if credentials are the expected format
-      if (envData.environment.clientKeyLength !== 18) {
-        setError(`TikTok Client Key length is unexpected (${envData.environment.clientKeyLength}, expected 18)`);
-        setLoading(false);
-        return;
-      }
-
-    } catch (envError) {
-      console.error('Environment test failed:', envError);
-      setError('Failed to verify environment configuration');
-      setLoading(false);
-      return;
-    }
+    setLoading(true);
 
     // Generate state and build OAuth URL
     const state = Math.random().toString(36).substring(7);
     const redirectUri = `${window.location.origin}/auth/tiktok/callback`;
-    
-    // Use only basic scopes that don't require special approval
     const scopes = 'user.info.basic,user.info.profile';
     const responseType = 'code';
 
-    // Store state for validation (optional)
+    // Store state for validation
     sessionStorage.setItem('tiktok_oauth_state', state);
 
-    // Construct the correct TikTok OAuth URL
+    // Construct the TikTok OAuth URL
     const params = new URLSearchParams({
       client_key: clientKey,
       scope: scopes,
@@ -91,34 +54,33 @@ export default function TikTokConnect() {
       state: state
     });
 
-    // Use the correct TikTok OAuth endpoint (Display API, not Business API)
     const authUrl = `https://www.tiktok.com/v2/auth/authorize/?${params.toString()}`;
-
-    console.log('=== TikTok OAuth Setup ===');
-    console.log('OAuth URL:', authUrl);
-    console.log('Redirect URI:', redirectUri);
-    console.log('State:', state);
-    console.log('Client Key:', clientKey);
-    console.log('Scopes:', scopes);
     
     setLoading(false);
-    
-    // Open in same window for faster authorization code exchange
     window.location.href = authUrl;
   };
 
   const fetchUserStats = async () => {
+    setLoading(true);
+    setError(null);
+
     try {
       const tiktokAPI = new TikTokAPI();
       const tokens = localStorage.getItem('tiktok_tokens');
-      if (!tokens) return;
+      if (!tokens) {
+        throw new Error('No TikTok tokens found');
+      }
 
       const { access_token } = JSON.parse(tokens);
       const stats = await tiktokAPI.getUserStats(access_token);
       setUserStats(stats);
     } catch (error) {
       console.error('Error fetching TikTok stats:', error);
-      // Don't show error to user for stats fetching, as connection is still valid
+      setError('Failed to fetch TikTok statistics');
+      setIsConnected(false);
+      localStorage.removeItem('tiktok_tokens');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -127,38 +89,6 @@ export default function TikTokConnect() {
     setIsConnected(false);
     setUserStats(null);
     setError(null);
-    setDebugInfo(null);
-  };
-
-  const handleTestConnection = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const tokens = localStorage.getItem('tiktok_tokens');
-      if (!tokens) {
-        setError('No TikTok tokens found');
-        setLoading(false);
-        return;
-      }
-
-      const { access_token } = JSON.parse(tokens);
-      const tiktokAPI = new TikTokAPI();
-      
-      // Test API call
-      const userInfo = await tiktokAPI.getUserInfo(access_token);
-      if (userInfo) {
-        setError(null);
-        alert('TikTok connection is working! User: ' + (userInfo.displayName || 'Unknown'));
-      } else {
-        setError('Failed to fetch user information');
-      }
-    } catch (error) {
-      console.error('Test connection error:', error);
-      setError(`Test failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
-      setLoading(false);
-    }
   };
 
   const formatNumber = (num: number | undefined): string => {
@@ -172,233 +102,130 @@ export default function TikTokConnect() {
     <div className="bg-white rounded-lg shadow-md p-6">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center">
-          <div className="w-10 h-10 bg-black rounded-lg flex items-center justify-center mr-3">
-            <span className="text-white font-bold text-sm">TT</span>
+          <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center mr-3">
+            <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
+            </svg>
           </div>
-          <div>
-            <h3 className="font-semibold text-gray-900">TikTok</h3>
-            <p className="text-sm text-gray-500">
-              {isConnected ? 'Connected' : 'Not connected'}
-            </p>
-          </div>
+          <h3 className="text-xl font-semibold">TikTok</h3>
         </div>
         
-        <div className="flex space-x-2">
-          {isConnected ? (
-            <>
-              <button
-                onClick={handleTestConnection}
-                disabled={loading}
-                className="px-3 py-1 text-xs bg-blue-100 text-blue-600 rounded hover:bg-blue-200 disabled:opacity-50"
-              >
-                {loading ? 'Testing...' : 'Test'}
-              </button>
-              <button
-                onClick={handleDisconnect}
-                className="px-3 py-1 text-xs bg-red-100 text-red-600 rounded hover:bg-red-200"
-              >
-                Disconnect
-              </button>
-            </>
-          ) : (
-            <button
-              onClick={handleConnect}
-              disabled={loading}
-              className="px-4 py-2 bg-black text-white rounded-md hover:bg-gray-800 disabled:opacity-50"
-            >
-              {loading ? 'Connecting...' : 'Connect'}
-            </button>
-          )}
-        </div>
+        {isConnected && (
+          <span className="text-green-600 text-sm font-medium">Connected</span>
+        )}
       </div>
 
       {error && (
-        <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
-          <div className="font-semibold">Error:</div>
-          <div>{error}</div>
-          
-          {/* Show helpful tips based on error type */}
-          {error.includes('invalid_client') && (
-            <div className="mt-2 text-xs">
-              <strong>Troubleshooting tips:</strong>
-              <ul className="list-disc list-inside mt-1 space-y-1">
-                <li>Verify your TikTok app credentials in the Developer Portal</li>
-                <li>Ensure your app has Login Kit enabled</li>
-                <li>Check that redirect URI exactly matches the registered URI</li>
-                <li>Make sure your app is approved for production use</li>
-              </ul>
-            </div>
-          )}
-          
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+          {error}
           {error.includes('Access Denied') && (
-            <div className="mt-2 text-xs">
-              <strong>TikTok Access Denied - App Not Approved:</strong>
-              <ul className="list-disc list-inside mt-1 space-y-1">
-                <li>Your TikTok app needs to be approved before OAuth works</li>
-                <li>Check app status in TikTok Developer Portal</li>
-                <li>Enable "Login Kit for Web" product in your app</li>
-                <li>Submit app for review if still in draft status</li>
-                <li>Consider using sandbox mode for development</li>
-              </ul>
+            <div className="mt-2 text-sm">
+              <strong>Note:</strong> Your TikTok app needs to be approved by TikTok before OAuth works. 
+              Please check your app status in the TikTok Developer Portal.
             </div>
           )}
+        </div>
+      )}
+
+      {!isConnected ? (
+        <div className="text-center py-6">
+          <p className="text-gray-600 mb-4">
+            Connect your TikTok account to track your stats and calculate sponsorship rates.
+          </p>
+          <button
+            onClick={handleConnect}
+            disabled={loading}
+            className="bg-black text-white px-6 py-2 rounded-md hover:bg-gray-800 transition-colors disabled:opacity-50"
+          >
+            {loading ? 'Connecting...' : 'Connect TikTok Account'}
+          </button>
           
-          {error.includes('expired') && (
-            <div className="mt-2 text-xs">
-              <strong>Note:</strong> TikTok authorization codes expire very quickly. 
-              Try the connection process again and complete it faster.
+          {!loading && (
+            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
+              <p className="font-medium">⚠️ TikTok Integration Status</p>
+              <p className="mt-1">TikTok apps require approval before OAuth works. If you see an "Access Denied" error, 
+              your app needs to be approved in the TikTok Developer Portal.</p>
             </div>
           )}
-          
-          {/* Add debug information for troubleshooting */}
-          {debugInfo && (
-            <div className="mt-3 p-2 bg-gray-100 border rounded text-xs">
-              <strong>Debug Info:</strong>
-              <div className="mt-1">
-                <div>Client Key: {debugInfo.environment?.clientKey || 'NOT SET'}</div>
-                <div>Client Secret: {debugInfo.environment?.clientSecret || 'NOT SET'}</div>
-                <div>Environment: {debugInfo.environment?.nodeEnv || 'unknown'}</div>
+        </div>
+      ) : (
+        <div>
+          {loading ? (
+            <div className="text-center py-6">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black mx-auto"></div>
+              <p className="text-gray-600 mt-2">Loading account stats...</p>
+            </div>
+          ) : userStats ? (
+            <div>
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-black">
+                    {formatNumber(userStats.followerCount)}
+                  </div>
+                  <div className="text-sm text-gray-600">Followers</div>
+                </div>
+                
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-black">
+                    {formatNumber(userStats.totalViews)}
+                  </div>
+                  <div className="text-sm text-gray-600">Total Views</div>
+                </div>
+                
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-black">
+                    {formatNumber(userStats.totalLikes)}
+                  </div>
+                  <div className="text-sm text-gray-600">Total Likes</div>
+                </div>
+                
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-black">
+                    {userStats.videoCount || 0}
+                  </div>
+                  <div className="text-sm text-gray-600">Videos</div>
+                </div>
+              </div>
+
+              <div className="flex space-x-2">
+                <button
+                  onClick={fetchUserStats}
+                  className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+                >
+                  Refresh Stats
+                </button>
+                <button
+                  onClick={handleDisconnect}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+                >
+                  Disconnect
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-6">
+              <p className="text-gray-600 mb-4">Failed to load account data</p>
+              <p className="text-sm text-gray-500 mb-4">
+                Your TikTok access may have expired. Try refreshing or reconnecting.
+              </p>
+              <div className="flex space-x-2 justify-center">
+                <button
+                  onClick={fetchUserStats}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+                >
+                  Retry
+                </button>
+                <button
+                  onClick={handleDisconnect}
+                  className="bg-black text-white px-4 py-2 rounded-md hover:bg-gray-800 transition-colors"
+                >
+                  Reconnect TikTok
+                </button>
               </div>
             </div>
           )}
         </div>
       )}
-
-      {/* Add a dedicated debug section */}
-      {!isConnected && (
-        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded text-sm">
-          <div className="font-semibold text-blue-800 mb-2">TikTok Integration Status</div>
-          <div className="space-y-1 text-blue-700">
-            <div>✓ Client Key: configured (18 chars)</div>
-            <div>✓ Client Secret: configured (40 chars)</div>
-            <div>✓ OAuth endpoint: https://www.tiktok.com/v2/auth/authorize/</div>
-            <div>✓ Token endpoint: https://open.tiktokapis.com/v2/oauth/token/</div>
-            <div className="mt-2 text-xs">
-              <strong>Common Issues:</strong>
-              <ul className="list-disc list-inside mt-1 space-y-1">
-                <li>App not approved by TikTok (most common)</li>
-                <li>Login Kit for Web not enabled in TikTok Developer Portal</li>
-                <li>Redirect URI not matching exactly</li>
-                <li>Scopes not approved for your app</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {isConnected && userStats && (
-        <div className="grid grid-cols-2 gap-4 text-center">
-          <div>
-            <div className="text-lg font-semibold text-gray-900">
-              {formatNumber(userStats.followerCount)}
-            </div>
-            <div className="text-sm text-gray-500">Followers</div>
-          </div>
-          <div>
-            <div className="text-lg font-semibold text-gray-900">
-              {formatNumber(userStats.totalViews)}
-            </div>
-            <div className="text-sm text-gray-500">Total Views</div>
-          </div>
-          <div>
-            <div className="text-lg font-semibold text-gray-900">
-              {formatNumber(userStats.totalLikes)}
-            </div>
-            <div className="text-sm text-gray-500">Total Likes</div>
-          </div>
-          <div>
-            <div className="text-lg font-semibold text-gray-900">
-              {userStats.videoCount || 0}
-            </div>
-            <div className="text-sm text-gray-500">Videos</div>
-          </div>
-        </div>
-      )}
-
-      {/* Debug tools */}
-      <div className="mt-4 pt-4 border-t border-gray-200">
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={async () => {
-              try {
-                setLoading(true);
-                const response = await fetch('/api/tiktok/validate-app');
-                const data = await response.json();
-                setDebugInfo(data);
-                console.log('App validation result:', data);
-              } catch (err) {
-                console.error('App validation failed:', err);
-              } finally {
-                setLoading(false);
-              }
-            }}
-            disabled={loading}
-            className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200 disabled:opacity-50"
-          >
-            {loading ? 'Checking...' : 'Validate App'}
-          </button>
-          
-          <button
-            onClick={() => {
-              const clientKey = process.env.NEXT_PUBLIC_TIKTOK_CLIENT_KEY;
-              const redirectUri = `${window.location.origin}/auth/tiktok/callback`;
-              const state = 'debug_test';
-              const scopes = 'user.info.basic,user.info.profile';
-              
-              const params = new URLSearchParams({
-                client_key: clientKey || '',
-                scope: scopes,
-                response_type: 'code',
-                redirect_uri: redirectUri,
-                state: state
-              });
-              
-              const authUrl = `https://www.tiktok.com/v2/auth/authorize/?${params.toString()}`;
-              
-              console.log('=== DEBUG: Generated OAuth URL ===');
-              console.log('Full URL:', authUrl);
-              console.log('Client Key:', clientKey);
-              console.log('Redirect URI:', redirectUri);
-              console.log('Scopes:', scopes);
-              
-              // Copy to clipboard
-              navigator.clipboard.writeText(authUrl).then(() => {
-                alert('OAuth URL copied to clipboard! Check console for details.');
-              });
-            }}
-            className="px-2 py-1 text-xs bg-green-100 text-green-600 rounded hover:bg-green-200"
-          >
-            Generate Test URL
-          </button>
-        </div>
-      </div>
-
-      {/* Debug information (only shown when there's an error) */}
-      {debugInfo && error && (
-        <details className="mt-4">
-          <summary className="text-xs text-gray-500 cursor-pointer hover:text-gray-700">
-            Show Debug Information
-          </summary>
-          <pre className="mt-2 text-xs bg-gray-100 p-2 rounded overflow-auto max-h-48">
-            {JSON.stringify(debugInfo, null, 2)}
-          </pre>
-        </details>
-      )}
-
-      {/* Status indicator */}
-      <div className="mt-4 flex items-center justify-between text-xs text-gray-500">
-        <div className="flex items-center">
-          <div className={`w-2 h-2 rounded-full mr-2 ${
-            isConnected ? 'bg-green-500' : 'bg-gray-300'
-          }`}></div>
-          {isConnected ? 'Active connection' : 'No connection'}
-        </div>
-        {isConnected && userStats && (
-          <div>
-            Last updated: {new Date().toLocaleTimeString()}
-          </div>
-        )}
-      </div>
     </div>
   );
 } 
