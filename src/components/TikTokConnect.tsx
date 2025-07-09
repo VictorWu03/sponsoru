@@ -118,12 +118,6 @@ export default function TikTokConnect() {
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
           {error}
-          {error.includes('Access Denied') && (
-            <div className="mt-2 text-sm">
-              <strong>Note:</strong> Your TikTok app needs to be approved by TikTok before OAuth works. 
-              Please check your app status in the TikTok Developer Portal.
-            </div>
-          )}
         </div>
       )}
 
@@ -139,14 +133,6 @@ export default function TikTokConnect() {
           >
             {loading ? 'Connecting...' : 'Connect TikTok Account'}
           </button>
-          
-          {!loading && (
-            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
-              <p className="font-medium">⚠️ TikTok Integration Status</p>
-              <p className="mt-1">TikTok apps require approval before OAuth works. If you see an "Access Denied" error, 
-              your app needs to be approved in the TikTok Developer Portal.</p>
-            </div>
-          )}
         </div>
       ) : (
         <div>
