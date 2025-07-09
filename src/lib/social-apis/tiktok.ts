@@ -42,14 +42,14 @@ interface TikTokAnalytics {
 export type { TikTokUserStats, TikTokVideoStats, TikTokAnalytics };
 
 export class TikTokAPI {
-  private baseUrl = 'https://open-api.tiktok.com';
+  private baseUrl = 'https://open.tiktokapis.com';
 
   async getUserInfo(accessToken: string): Promise<TikTokUserStats | null> {
     try {
       console.log('Fetching TikTok user info...');
       
       const response = await fetch(
-        `${this.baseUrl}/user/info/?fields=display_name,bio_description,avatar_url,is_verified,follower_count,following_count,likes_count,video_count`,
+        `${this.baseUrl}/v2/user/info/?fields=display_name,bio_description,avatar_url,is_verified,follower_count,following_count,likes_count,video_count`,
         {
           headers: {
             'Authorization': `Bearer ${accessToken}`,
@@ -118,7 +118,7 @@ export class TikTokAPI {
       console.log('Fetching TikTok video list...');
       
       const response = await fetch(
-        `${this.baseUrl}/video/list/?fields=id,title,create_time,cover_image_url,share_url,video_url,duration,height,width&max_count=${maxCount}`,
+        `${this.baseUrl}/v2/video/list/?fields=id,title,create_time,cover_image_url,share_url,video_url,duration,height,width&max_count=${maxCount}`,
         {
           headers: {
             'Authorization': `Bearer ${accessToken}`,
@@ -175,7 +175,7 @@ export class TikTokAPI {
   }> {
     try {
       const response = await fetch(
-        `${this.baseUrl}/video/query/?fields=view_count,like_count,comment_count,share_count&video_ids=[${videoId}]`,
+        `${this.baseUrl}/v2/video/query/?fields=view_count,like_count,comment_count,share_count&video_ids=[${videoId}]`,
         {
           headers: {
             'Authorization': `Bearer ${accessToken}`,
@@ -264,14 +264,14 @@ export class TikTokAPI {
     ].join(',');
 
     const params = new URLSearchParams({
-      client_key: process.env.NEXT_PUBLIC_TIKTOK_CLIENT_KEY || '',
+      client_id: process.env.NEXT_PUBLIC_TIKTOK_CLIENT_KEY || '',
       scope: scopes,
       response_type: 'code',
       redirect_uri: redirectUri,
       state: state,
     });
 
-    return `https://www.tiktok.com/auth/authorize/?${params.toString()}`;
+    return `https://www.tiktok.com/v2/auth/authorize/?${params.toString()}`;
   }
 
   async exchangeCodeForTokens(code: string, redirectUri: string): Promise<any> {
