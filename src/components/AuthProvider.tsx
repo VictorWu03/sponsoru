@@ -80,7 +80,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       <div className="min-h-screen bg-gray-50">
         <nav className="bg-blue-50 shadow-sm border-b p-4 fixed top-0 w-full z-50">
           <div className="max-w-7xl mx-auto flex justify-between items-center">
-            <h1 className="text-xl font-bold text-blue-600">Sponsoru</h1>
+            <h1 className="text-xl font-bold text-blue-600">Sponsoru v0.1</h1>
             <div className="flex items-center space-x-4">
               {/* <span className="text-sm text-gray-600">
                 Welcome, {user.email}
