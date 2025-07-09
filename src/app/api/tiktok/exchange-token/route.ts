@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const clientKey = process.env.TIKTOK_CLIENT_KEY;
+    const clientKey = process.env.NEXT_PUBLIC_TIKTOK_CLIENT_KEY;
     const clientSecret = process.env.TIKTOK_CLIENT_SECRET;
 
     if (!clientKey || !clientSecret) {
@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
     } else if (data.error === 'invalid_client') {
       errorMessage = 'Invalid client credentials';
              suggestions = [
-         'Verify TIKTOK_CLIENT_KEY is correct',
+         'Verify NEXT_PUBLIC_TIKTOK_CLIENT_KEY is correct',
          'Verify TIKTOK_CLIENT_SECRET is correct',
          'Check that credentials are for the same TikTok app'
        ];

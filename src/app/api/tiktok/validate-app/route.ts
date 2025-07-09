@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
   try {
-      const clientKey = process.env.TIKTOK_CLIENT_KEY;
-  const clientSecret = process.env.TIKTOK_CLIENT_SECRET;
+    const clientKey = process.env.NEXT_PUBLIC_TIKTOK_CLIENT_KEY;
+    const clientSecret = process.env.TIKTOK_CLIENT_SECRET;
 
     console.log('=== TikTok App Validation ===');
     
@@ -93,8 +93,8 @@ export async function GET(request: NextRequest) {
     const suggestions = [];
 
     if (!validation.environment.clientKey.present) {
-      issues.push('TIKTOK_CLIENT_KEY is not set');
-      suggestions.push('Set TIKTOK_CLIENT_KEY in your environment variables');
+      issues.push('NEXT_PUBLIC_TIKTOK_CLIENT_KEY is not set');
+      suggestions.push('Set NEXT_PUBLIC_TIKTOK_CLIENT_KEY in your environment variables');
     } else if (!validation.environment.clientKey.valid) {
       issues.push(`Client Key length is ${validation.environment.clientKey.length}, expected 18`);
       suggestions.push('Verify your Client Key from TikTok Developer Portal');
